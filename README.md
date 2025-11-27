@@ -201,6 +201,3 @@ async getProfile(@Request() req) {
 ### Error: "connect ECONNREFUSED 127.0.0.1:3306"
 → Inicia MySQL: `net start MySQL80` (Windows)
 
-## 📄 Licencia
-
-MIT
