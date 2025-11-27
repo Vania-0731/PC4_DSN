@@ -75,7 +75,8 @@ Abre tu navegador en: **http://localhost:3001**
 
 ## 🗄️ Conexión a AWS RDS (Producción)
 
-Para conectar a una base de datos MySQL en AWS RDS, edita `backend/.env`:
+### 1. Configurar Base de Datos
+Edita `backend/.env`:
 
 ```env
 DB_HOST=tu-instancia.xxxxxxxxx.us-east-1.rds.amazonaws.com
@@ -83,6 +84,23 @@ DB_PORT=3306
 DB_USER=admin
 DB_PASS=tu_password_rds
 DB_NAME=authdb
+```
+
+### 2. Configurar CORS para Producción
+Edita `backend/src/main.ts`:
+
+```typescript
+app.enableCors({
+  origin: ['https://tu-dominio.com', 'https://www.tu-dominio.com'],
+  credentials: true,
+});
+```
+
+### 3. Actualizar URL del Frontend
+Edita `frontend/.env.local`:
+
+```env
+NEXT_PUBLIC_API_URL=https://api.tu-dominio.com
 ```
 
 ## 🐳 Ejecutar con Docker (Opcional)
@@ -98,12 +116,28 @@ Esto levantará:
 
 ## 📡 API Endpoints
 
-| Método | Ruta | Descripción |
-|--------|------|-------------|
-| POST | `/auth/register` | Registrar usuario y obtener QR |
-| POST | `/auth/login` | Login con email y password |
-| POST | `/auth/2fa/verify` | Verificar código 2FA |
-| GET | `/users/me` | Obtener perfil (requiere JWT) |
+| Método | Ruta | Descripción | Auth |
+|--------|------|-------------|------|
+| POST | `/auth/register` | Registrar usuario y obtener QR | No |
+| POST | `/auth/login` | Login con email y password | No |
+| POST | `/auth/2fa/verify` | Verificar código 2FA | No |
+| GET | `/users/me` | Obtener perfil del usuario | **Sí (JWT)** |
+
+### Ejemplo de Petición con JWT
+
+```bash
+# Obtener perfil (ruta protegida)
+curl -X GET http://localhost:3000/users/me \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+```
+
+En el frontend, el JWT se envía automáticamente desde `localStorage`:
+```typescript
+const token = localStorage.getItem('token');
+axios.get(`${API_URL}/users/me`, {
+  headers: { Authorization: `Bearer ${token}` }
+});
+```
 
 ## 🛠️ Tecnologías
 
@@ -125,15 +159,36 @@ project/
 └── docker-compose.yml
 ```
 
-## 🔧 Archivo de Conexión con Authenticator
+## 🔧 Archivos Importantes
 
-La integración con Google Authenticator se encuentra en:
-
+### Conexión con Google Authenticator
 **`backend/src/auth/auth.service.ts`**
-
 - **Línea 4**: Importación de `otplib` → `import { authenticator } from 'otplib';`
 - **Método `register()`**: Genera el secreto TOTP y el QR
 - **Método `verify2FA()`**: Valida el código de 6 dígitos
+
+### Configuración de CORS
+**`backend/src/main.ts`** (líneas 8-11)
+```typescript
+app.enableCors({
+  origin: ['http://localhost:3001', 'http://localhost:3000'],
+  credentials: true,
+});
+```
+Permite peticiones desde el frontend. Para producción, cambia las URLs por tu dominio.
+
+### Rutas Protegidas con JWT
+**`backend/src/user/user.controller.ts`**
+```typescript
+@UseGuards(JwtAuthGuard)
+@Get('me')
+async getProfile(@Request() req) {
+  // Solo accesible con JWT válido
+}
+```
+
+**`backend/src/auth/guards/jwt-auth.guard.ts`** - Guard que valida el JWT
+**`backend/src/auth/strategies/jwt.strategy.ts`** - Estrategia de validación JWT
 
 ## ❌ Solución de Problemas
 
